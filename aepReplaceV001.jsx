@@ -1,6 +1,9 @@
-// Originally based on mitsutsumi's AEP Routine Work https://www.3223.pics/2018/02/aeaep-routine-work-v10.html
-// Version 3.0
-
+/*Originally based on mitsutsumi's AEP Routine Work https://www.3223.pics/2018/02/aeaep-routine-work-v10.html
+* Version 3.0
+*
+*
+*
+*/
 (function() {
 
     if (!Array.prototype.forEach) {
@@ -14,11 +17,16 @@
     var config = {
         inName: "IN_1".toLowerCase(), // Ensure case-insensitive match
         outName: "OUT".toLowerCase(), // Ensure case-insensitive match
-        fitItem: true,
-        fxFolder: "04_celfx"
+        //fitItem: true,
+        fxFolder: "04_celfx",
+        fxFolderSuffix: "_FX",
+        presetPath: "",
+        presetPathFallback: "",
+        solidsFolder: "99_solids",
+        texturesFolder: "FX_textures"
     };
 
-        // Function to get a default path two folders up from the current project
+    // Function to get a default path two folders up from the current project
     function splitPath(path) {
         // On Windows, paths use backslashes (\), so we split by backslash
         return path.split(/\\|\//); // This regex handles both \ and / for compatibility
@@ -44,7 +52,6 @@
         }
     }
 
-    // Function to select an AEP file
     function selectAEPFile() {
         var defaultPath = getDefaultPath();
         // Set initial directory for the open dialog
@@ -60,7 +67,6 @@
         }
     }
 
-    // Function to import an AEP file and categorize project items
     function importAEP(aepPath) {
         // Check if the provided path is valid
         if (aepPath == null || aepPath === "") {
@@ -123,8 +129,7 @@
         }
     }
 
-    // Function to catalog layers in all imported compositions
-    function catalogLayersInComps(categorizedItems) {
+    function catalogLayers(categorizedItems) {
         var compLayers = [];
 
         categorizedItems.compositions.forEach(function(comp) {
@@ -138,7 +143,6 @@
         return compLayers;
     }
 
-    // Function to find a layer by name in the cataloged compositions
     function findLayerByName(layerName, layerArray) {
         for (i = 0; i < layerArray.length; i++) {
         
@@ -161,6 +165,16 @@
         return null; // Return null if the layer is not found
     }
 
+    function findOrCreateFolder(folderName) {
+        for (var i = 1; i <= app.project.numItems; i++) {
+            var item = app.project.item(i);
+            if (item instanceof FolderItem && item.name === folderName) {
+                return item; 
+            }
+        }
+        return app.project.items.addFolder(folderName);
+    };
+
     function checkLayers(layerArray){
         for (i = 0; i < layerArray.length; i++) {
                 var layer = layerArray[i];
@@ -169,25 +183,58 @@
     }
 
 //------------------exec----------------------------------------------------//
+    
+    var selLayer = app.project.activeItem.selectedLayers[0];
+    if (!selLayer){
+        alert("No layers selected");
+        return;
+    }
+    $.writeln(selLayer.name);
+    
     var selectedAEPPath = selectAEPFile();
-    $.writeln(selectedAEPPath);
+    //$.writeln(selectedAEPPath);
     if (!selectedAEPPath) {
         alert("No AEP file selected.");
+        return;
     } 
-    else {
-        
-        var categorizedItems = importAEP(selectedAEPPath);
-        var getAllLayers = catalogLayersInComps(categorizedItems);
+    
 
-        getAllLayers.sort();
-        var inLayer = findLayerByName(config.inName, getAllLayers);
-        $.writeln(inLayer.name);
-        var outComp = findCompByName(config.outName, categorizedItems);
-        $.writeln(outComp.name);
+    var categorizedItems = importAEP(selectedAEPPath);
+    var getAllLayers = catalogLayers(categorizedItems);
+
+    getAllLayers.sort();
+    var inLayer = findLayerByName(config.inName, getAllLayers);
+    $.writeln(inLayer.name);
+    var outComp = findCompByName(config.outName, categorizedItems);
+    $.writeln(outComp.name);
 
 
+    //project panel folder management
+    var getFxFolder = findOrCreateFolder(config.fxFolder);
+    var getSolidsFolder = findOrCreateFolder(config.solidsFolder);
+    var getTextureFolder = findOrCreateFolder(config.texturesFolder);
+    if (getTextureFolder && getTextureFolder.parentFolder !== getFxFolder){
+        getTextureFolder.parentFolder = getFxFolder;
+    };
+    $.writeln(getFxFolder.name);
 
-        $.writeln("joever");
+    var makeFolderName = selLayer.name + config.fxFolderSuffix;
+    var aepRootFolder = categorizedItems.compositions[0].parentFolder
+    $.writeln(aepRootFolder.name);
+    aepRootFolder.name = makeFolderName;
+    aepRootFolder.parentFolder = getFxFolder;
+
+    categorizedItems.footage.forEach(function(item){
+        item.parentFolder = getTextureFolder;
+    });
+    categorizedItems.solids.forEach(function(item){
+        item.parentFolder = getSolidsFolder;
+    });
+    for (q = 1; q <= aepRootFolder.numItems; q++){
+        if (aepRootFolder.item(q) instanceof FolderItem && aepRootFolder.item(q).numItems === 0){aepRootFolder.item(q).remove()}
     }
+    ///end of folder mngmt
 
+
+    $.writeln("joever");
 })();
