@@ -17,13 +17,14 @@
     var config = {
         inName: "IN_1".toLowerCase(), // Ensure case-insensitive match
         outName: "OUT".toLowerCase(), // Ensure case-insensitive match
-        //fitItem: true,
+        layerSuffix: "_FX",
         fxFolder: "04_celfx",
         fxFolderSuffix: "_FX",
-        presetPath: "",
-        presetPathFallback: "",
-        solidsFolder: "99_solids",
-        texturesFolder: "FX_textures"
+        pathDepth: 4,
+        presetPath: "/_SOZAI/02_charaFX",
+        presetPathFallback: "", //for now it's mydocuments
+        solidsFolder: "99_solids",      //all solids will go here
+        texturesFolder: "FX_textures"   //all footage items will go here
     };
 
     // Function to get a default path two folders up from the current project
@@ -47,15 +48,18 @@
         } else {
             var pathParts = splitPath(currentProjectPath);
             // Remove the last two segments (the project file name and one folder up)
-            pathParts.length = Math.max(pathParts.length - 2, 1); // Ensure we don't go below the root
-            return joinPath(pathParts);
+            pathParts.length = Math.max(pathParts.length - config.pathDepth, 1); // Ensure we don't go below the root
+            $.writeln(pathParts);
+            return joinPath(pathParts)+config.presetPath;
         }
     }
 
     function selectAEPFile() {
         var defaultPath = getDefaultPath();
+        $.writeln(defaultPath);
         // Set initial directory for the open dialog
         var initialDir = new Folder(defaultPath);
+        $.writeln(initialDir);
         var aepFile = initialDir.openDlg("Select an After Effects Project", "After Effects Project:*.aep", initialDir, false);
 
         if (aepFile !== null) {
@@ -83,6 +87,7 @@
             var importedProject = project.importFile(importOptions);
 
             var importedItems = {
+                folders: [],
                 compositions: [],
                 footage: [],
                 solids: []
@@ -95,6 +100,7 @@
                     var item = importedProject.item(i);
                     switch (true) { // Use `true` as the switch expression
                         case (item instanceof FolderItem):
+                            importedItems.folders.push(item);
                             doCategorize(item); 
                             break; 
 
@@ -103,8 +109,10 @@
                             break;
 
                         case (item instanceof FootageItem):
-                            if (item.mainSource instanceof SolidSource){importedItems.solids.push(item);break;}
-                            else {importedItems.footage.push(item);break;}
+                            if (item.mainSource instanceof SolidSource){
+                                importedItems.solids.push(item);break;}
+                            else {
+                                importedItems.footage.push(item);break;}
                         default:
                             break;
                     }
@@ -116,6 +124,7 @@
 
             // Log or use the categorized items as needed
             // For now, we'll just log to the JavaScript Console
+            $.writeln("Folders: " + importedItems.folders.length);
             $.writeln("Compositions: " + importedItems.compositions.length);
             $.writeln("Footage: " + importedItems.footage.length);
             $.writeln("Solids: " + importedItems.solids.length);
@@ -181,12 +190,32 @@
                 $.writeln("Layer name: " + layer.name);
         }
     }
+    function clearProjectPanelSelection(itemToSelect){
+        for (i = 1; i < app.project.numItems; i++){
+            var item = app.project.item(i);
+            if (item.selected === true){
+                item.selected = false;
+            }
+        }
+        if (!itemToSelect){return null;}
+        else{itemToSelect.selected = true;return itemToSelect;}
+    }
+    function clearTimelineSelection(itemToSelect){
+        for (i = 1; i < app.project.activeItem.layers; i++){
+            var item = app.project.activeItem.layer(i);
+            if (item.selected === true){
+                item.selected = false;
+            }
+        }
+        if (!itemToSelect){return null;}
+        else{itemToSelect.selected = true;return itemToSelect;}
+    }
 
 //------------------exec----------------------------------------------------//
     
     var selLayer = app.project.activeItem.selectedLayers[0];
     if (!selLayer){
-        alert("No layers selected");
+        $.writeln("No layers selected");
         return;
     }
     $.writeln(selLayer.name);
@@ -194,10 +223,10 @@
     var selectedAEPPath = selectAEPFile();
     //$.writeln(selectedAEPPath);
     if (!selectedAEPPath) {
-        alert("No AEP file selected.");
+        $.writeln("No AEP file selected.");
         return;
     } 
-    
+    //check for existence of out/in
 
     var categorizedItems = importAEP(selectedAEPPath);
     var getAllLayers = catalogLayers(categorizedItems);
@@ -208,6 +237,17 @@
     var outComp = findCompByName(config.outName, categorizedItems);
     $.writeln(outComp.name);
 
+    var oldOutName = outComp.name;
+    var newOutName = selLayer.name + config.layerSuffix;
+    outComp.name = config.layerSuffix;
+
+    $.writeln(inLayer.name);
+    $.writeln(outComp.name);
+
+    inSource = inLayer.source;
+
+    inLayer.replaceSource(selLayer.source, false);
+    selLayer.replaceSource(outComp, false);
 
     //project panel folder management
     var getFxFolder = findOrCreateFolder(config.fxFolder);
@@ -224,16 +264,28 @@
     aepRootFolder.name = makeFolderName;
     aepRootFolder.parentFolder = getFxFolder;
 
+    categorizedItems.compositions.forEach(function(item){
+        item.name = selLayer.name +item.name;
+    });
     categorizedItems.footage.forEach(function(item){
         item.parentFolder = getTextureFolder;
     });
     categorizedItems.solids.forEach(function(item){
         item.parentFolder = getSolidsFolder;
     });
-    for (q = 1; q <= aepRootFolder.numItems; q++){
-        if (aepRootFolder.item(q) instanceof FolderItem && aepRootFolder.item(q).numItems === 0){aepRootFolder.item(q).remove()}
-    }
+    categorizedItems.folders.forEach(function(item){
+        if (item.numItems === 0){item.remove()}    
+    });
     ///end of folder mngmt
+    
+    selLayer.name = ""; //set to empty string so that the name will match projectItem
+    inLayer.name = ""; //set to empty string so that the name will match projectItem
+    inSource.remove();
+
+    app.project.autoFixExpressions(oldOutName, newOutName);
+    clearProjectPanelSelection(outComp);
+    clearTimelineSelection(selLayer);
+
 
 
     $.writeln("joever");
