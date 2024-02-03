@@ -17,29 +17,24 @@
     var config = {
         inName: "IN_1".toLowerCase(), // Ensure case-insensitive match
         outName: "OUT".toLowerCase(), // Ensure case-insensitive match
-        layerSuffix: "_FX",
+        layerSuffix: "_stack",
         fxFolder: "04_celfx",
         fxFolderSuffix: "_FX",
         pathDepth: 4,
         presetPath: "/_SOZAI/02_charaFX",
         presetPathFallback: "", //for now it's mydocuments
         solidsFolder: "99_solids",      //all solids will go here
-        texturesFolder: "FX_textures"   //all footage items will go here
+        texturesFolder: "FX_textures"   //all footage items will go here, subfolder of fxFolder
     };
 
-    // Function to get a default path two folders up from the current project
     function splitPath(path) {
-        // On Windows, paths use backslashes (\), so we split by backslash
         return path.split(/\\|\//); // This regex handles both \ and / for compatibility
     }
 
-    // Function to handle path joining correctly on Windows
     function joinPath(parts) {
-        // On Windows, paths are joined with backslashes (\)
         return parts.join("\\"); // Use backslash for Windows paths
     }
 
-    // Updated function to get a default path two folders up from the current project
     function getDefaultPath() {
         var currentProjectPath = app.project.file ? app.project.file.fsName : "";
         if (currentProjectPath === "") {
@@ -47,7 +42,6 @@
             return Folder.myDocuments.fsName;
         } else {
             var pathParts = splitPath(currentProjectPath);
-            // Remove the last two segments (the project file name and one folder up)
             pathParts.length = Math.max(pathParts.length - config.pathDepth, 1); // Ensure we don't go below the root
             $.writeln(pathParts);
             return joinPath(pathParts)+config.presetPath;
@@ -63,10 +57,8 @@
         var aepFile = initialDir.openDlg("Select an After Effects Project", "After Effects Project:*.aep", initialDir, false);
 
         if (aepFile !== null) {
-            // If the user selected a file, return the file path
             return aepFile;
         } else {
-            // If the user canceled the selection, return null
             return null;
         }
     }
@@ -278,14 +270,14 @@
     });
     ///end of folder mngmt
     
+    //cleanup
     selLayer.name = ""; //set to empty string so that the name will match projectItem
     inLayer.name = ""; //set to empty string so that the name will match projectItem
     inSource.remove();
-
     app.project.autoFixExpressions(oldOutName, newOutName);
     clearProjectPanelSelection(outComp);
     clearTimelineSelection(selLayer);
-
+    //
 
 
     $.writeln("joever");
