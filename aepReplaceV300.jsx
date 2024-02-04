@@ -321,8 +321,7 @@
         item.name = selLayerProps.name +item.name;
     });
     categorizedItems.footage.forEach(function(item){
-        $.writeln(item.name);
-        //item.parentFolder = getTextureFolder;
+        item.parentFolder = getTextureFolder;
     });
     categorizedItems.solids.forEach(function(item){
         item.parentFolder = getSolidsFolder;
