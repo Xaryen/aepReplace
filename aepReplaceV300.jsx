@@ -1,7 +1,5 @@
 /*Originally based on mitsutsumi's AEP Routine Work https://www.3223.pics/2018/02/aeaep-routine-work-v10.html
-* Version 3.0
-*
-*
+* Version "3.0"
 *
 */
 (function() {
@@ -15,14 +13,14 @@
 	}
 
     var config = {
-        inName: "IN_1".toLowerCase(), // in_1 for compatibility but won't be adding option to add multiple in layers
+        inName: "IN_1".toLowerCase(), // default as in_1 for compatibility but won't be adding option to add multiple in layers
         outName: "OUT".toLowerCase(), 
-        layerSuffix: "",
+        layerSuffix: "", //what will be attached to the top level layer, empty string means it will stay as default e.g. "A"
         fxFolder: "04_celfx", //subfolder in project root folder where imported materials will be placed
         fxFolderSuffix: "_FX",
-        pathDepth: 4, //how many directory levels to go up from current project file before applying preset path and opening default location
+        pathDepth: 9, //how many directory levels to go up from current project file before applying preset path and opening default location
         presetPath: "/_SOZAI/02_charaFX",
-        presetPathFallback: "", //for now it's mydocuments
+        presetPathFallback: "D:/", 
         solidsFolder: "99_solids",      //all solids will go here
         texturesFolder: "FX_textures"   //all footage items will go here, subfolder of fxFolder
     };
@@ -38,8 +36,7 @@
     function getDefaultPath() {
         var currentProjectPath = app.project.file ? app.project.file.fsName : "";
         if (currentProjectPath === "") {
-            // If there's no current project, use the user's home directory as a fallback
-            return Folder.myDocuments.fsName;
+            return config.presetPathFallback;
         } else {
             var pathParts = splitPath(currentProjectPath);
             pathParts.length = Math.max(pathParts.length - config.pathDepth, 1); // Ensure we don't go below the root
@@ -267,7 +264,7 @@
     
     var selLayer = app.project.activeItem.selectedLayers[0];
     if (!selLayer){
-        $.writeln("No layers selected");
+        alert("No layers selected.");
         return;
     }
     
@@ -277,15 +274,18 @@
         return;
     } 
     
-    //TODO: save project here in case something shits the back
+    //TODO: maybe save project at this point in case something shits the back
     var selLayerProps = saveLayerProps(selLayer);
-    //TODO: check for existence of out/in
     var categorizedItems = importAEP(selectedAEPPath); //import here
     app.beginUndoGroup("aepReplace script");
     var outComp = findCompByName(config.outName, categorizedItems);
     var importedLayers = catalogLayers(categorizedItems);
     importedLayers.sort();
     var inLayer = findLayerByName(config.inName, importedLayers);
+    if (!outComp || !inLayer){
+        alert("Issue with template aep.");
+        return;
+    }
     $.writeln(selLayer.name);
     var oldOutName = outComp.name; //"out"
     var newOutName = selLayer.name + config.layerSuffix; //"A" + "_FX"
@@ -294,36 +294,40 @@
 
     inLayer.replaceSource(selLayer.source, false);
 
-    selLayer.replaceSource(outComp, false);
-    $.writeln(selLayer.name);
 
-    //project panel folder management
+    selLayer.replaceSource(outComp, false);
+
+    //project panel folder management (TODO: wrap this into a function later ig)
     var getFxFolder = findOrCreateFolder(config.fxFolder);
     var getSolidsFolder = findOrCreateFolder(config.solidsFolder);
-    var getTextureFolder = findOrCreateFolder(config.texturesFolder);
-    if (getTextureFolder && getTextureFolder.parentFolder !== getFxFolder){
-        getTextureFolder.parentFolder = getFxFolder;
-    };
-
-    var makeFolderName = selLayer.name + config.fxFolderSuffix;
+    if (categorizedItems.footage.length > 0){
+        var getTextureFolder = findOrCreateFolder(config.texturesFolder);
+        if (getTextureFolder && getTextureFolder.parentFolder !== getFxFolder){
+            getTextureFolder.parentFolder = getFxFolder;
+        };
+    }
+    categorizedItems.folders.push(getTextureFolder);
+    var makeFolderName = selLayerProps.name + config.fxFolderSuffix;
     var aepRootFolder = categorizedItems.compositions[0].parentFolder
     //$.writeln(aepRootFolder.name);
     aepRootFolder.name = makeFolderName;
     aepRootFolder.parentFolder = getFxFolder;
     //end of folder mngmt
 
-    outComp.name = config.layerSuffix;
     //organize imported stuff
+    outComp.name = config.layerSuffix;
     categorizedItems.compositions.forEach(function(item){
         applyItemProps(item, selLayerProps);
         item.name = selLayerProps.name +item.name;
     });
     categorizedItems.footage.forEach(function(item){
-        item.parentFolder = getTextureFolder;
+        $.writeln(item.name);
+        //item.parentFolder = getTextureFolder;
     });
     categorizedItems.solids.forEach(function(item){
         item.parentFolder = getSolidsFolder;
     });
+    inSource.remove(); // needs to be after footage/solids but before folders
     categorizedItems.folders.forEach(function(item){
         if (item.numItems === 0){item.remove()}    
     });
@@ -335,7 +339,6 @@
     //cleanup
     selLayer.name = ""; //set to empty string so that the name will match projectItem
     inLayer.name = ""; //set to empty string so that the name will match projectItem
-    inSource.remove();
     app.project.autoFixExpressions(oldOutName, newOutName);
     clearProjectPanelSelection(outComp);
     clearTimelineSelection(selLayer);
