@@ -330,18 +330,20 @@
     categorizedItems.folders.forEach(function(item){
         if (item.numItems === 0){item.remove()}    
     });
+
+    selLayer.name = ""; //set to empty string so that the name will match projectItem
+    inLayer.name = ""; //set to empty string so that the name will match projectItem
+    app.project.autoFixExpressions(oldOutName, newOutName);
+
     importedLayers.forEach(function(layer){
         applyLayerProps(layer, selLayerProps);
     });
     //
-
-    //cleanup
-    selLayer.name = ""; //set to empty string so that the name will match projectItem
-    inLayer.name = ""; //set to empty string so that the name will match projectItem
-    app.project.autoFixExpressions(oldOutName, newOutName);
+    
     clearProjectPanelSelection(outComp);
     clearTimelineSelection(selLayer);
     //
+    
     app.endUndoGroup();
     $.writeln("joever");
     return 0;
