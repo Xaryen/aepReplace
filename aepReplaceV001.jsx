@@ -15,12 +15,12 @@
 	}
 
     var config = {
-        inName: "IN_1".toLowerCase(), // Ensure case-insensitive match
-        outName: "OUT".toLowerCase(), // Ensure case-insensitive match
+        inName: "IN_1".toLowerCase(), // in_1 for compatibility but won't be adding option to add multiple in layers
+        outName: "OUT".toLowerCase(), 
         layerSuffix: "",
-        fxFolder: "04_celfx",
+        fxFolder: "04_celfx", //subfolder in project root folder where imported materials will be placed
         fxFolderSuffix: "_FX",
-        pathDepth: 4, //how many directory levels to go up from current project file before applying preset path
+        pathDepth: 4, //how many directory levels to go up from current project file before applying preset path and opening default location
         presetPath: "/_SOZAI/02_charaFX",
         presetPathFallback: "", //for now it's mydocuments
         solidsFolder: "99_solids",      //all solids will go here
@@ -43,14 +43,14 @@
         } else {
             var pathParts = splitPath(currentProjectPath);
             pathParts.length = Math.max(pathParts.length - config.pathDepth, 1); // Ensure we don't go below the root
-            $.writeln(pathParts);
+            //$.writeln(pathParts);
             return joinPath(pathParts)+config.presetPath;
         }
     }
 
     function selectAEPFile() {
         var defaultPath = getDefaultPath();
-        $.writeln(defaultPath);
+        //$.writeln(defaultPath);
         // Set initial directory for the open dialog
         var initialDir = new Folder(defaultPath);
         $.writeln(initialDir);
@@ -73,7 +73,6 @@
         // Import the AEP file
         var importOptions = new ImportOptions(File(aepPath));
         var project = app.project;
-        app.beginUndoGroup("Import AEP");
 
         try {
             var importedProject = project.importFile(importOptions);
@@ -124,9 +123,7 @@
 
         } catch (e) {
             alert("Failed to import AEP file: " + e.toString());
-        } finally {
-            app.endUndoGroup();
-        }
+        } 
     }
 
     function catalogLayers(categorizedItems) {
@@ -203,38 +200,60 @@
         if (!itemToSelect){return null;}
         else{itemToSelect.selected = true;return itemToSelect;}
     }
-
+    
     function applyLayerProps(layer, refObj) { 
         switch (true) { 
             case (layer.source instanceof CompItem):
-                layer.source.width = refObj.width;
-                layer.source.height = refObj.height;
-                layer.source.duration = refObj.duration;
+                //special cases for comps
                 break; 
 
-            case (layer.source instanceof FootageItem):
+            case (layer.source instanceof FootageItem && layer.source.mainSource instanceof !SolidSource):
                 //special cases for footage
                 break;
                 
-            case (layer.source instanceof SolidSource && layer.nullLayer == false):
+            case (layer.source.mainSource instanceof SolidSource && layer.nullLayer == false):
                 layer.source.width = refObj.width;
                 layer.source.height = refObj.height;
                 break;
 
             case (layer instanceof ShapeLayer): 
-                 //all shape layers should already be self-adjusting through expressions so only change in/out
+                //all shape layers should already be self-adjusting through expressions so only change in/out
                 break;
 
             default:
                 break;
         }
-        // layer.inPoint = refObj.inPoint;
-        // layer.outPoint = refObj.outPoint;
-        
+        //layer.inPoint = refObj.inPoint;
+        if (layer.outPoint < refObj.duration){layer.outPoint = refObj.duration};
+        //reset position to middle
+        layer.transform.position.setValue([refObj.width/2,refObj.height/2,0]);
+    }
+
+    function applyItemProps(item, refObj) { 
+        switch (true) { 
+            case (item instanceof CompItem):
+                item.width = refObj.width;
+                item.height = refObj.height;
+                item.duration = refObj.duration;
+                break; 
+
+            case (item instanceof FootageItem && item.mainSource instanceof !SolidSource):
+                //special cases for footage
+                break;
+                
+            case (item.mainSource instanceof SolidSource):
+                //to resize nulls or not to
+                break;
+
+            default:
+                break;
+        }
+    
     }
 
     function saveLayerProps(layer) {
         return {
+            name: layer.name,
             transform: layer.transform,
             height: layer.source.height, 
             width: layer.source.width,
@@ -244,8 +263,6 @@
         };
     }
 
-
-
 //-----------main-exec----------------------------------------------------//
     
     var selLayer = app.project.activeItem.selectedLayers[0];
@@ -253,38 +270,32 @@
         $.writeln("No layers selected");
         return;
     }
-    $.writeln(selLayer.name);
     
     var selectedAEPPath = selectAEPFile();
-    //$.writeln(selectedAEPPath);
     if (!selectedAEPPath) {
         $.writeln("No AEP file selected.");
         return;
     } 
-
+    
+    //TODO: save project here in case something shits the back
     var selLayerProps = saveLayerProps(selLayer);
     //TODO: check for existence of out/in
     var categorizedItems = importAEP(selectedAEPPath); //import here
+    app.beginUndoGroup("aepReplace script");
     var outComp = findCompByName(config.outName, categorizedItems);
-    var getAllLayers = catalogLayers(categorizedItems);
-    getAllLayers.sort();
-    var inLayer = findLayerByName(config.inName, getAllLayers);
-    
-    var oldOutName = outComp.name;
-    var newOutName = selLayer.name + config.layerSuffix;
-    outComp.name = config.layerSuffix;
+    var importedLayers = catalogLayers(categorizedItems);
+    importedLayers.sort();
+    var inLayer = findLayerByName(config.inName, importedLayers);
+    $.writeln(selLayer.name);
+    var oldOutName = outComp.name; //"out"
+    var newOutName = selLayer.name + config.layerSuffix; //"A" + "_FX"
 
     var inSource = inLayer.source; //hold onto inlayer for deleting it later
+
     inLayer.replaceSource(selLayer.source, false);
 
-    $.writeln(selLayerProps.transform.position.value);
-    $.writeln(selLayerProps.height);
-
     selLayer.replaceSource(outComp, false);
-
-    $.writeln(selLayerProps.transform.position.value);
-    $.writeln(selLayerProps.height);
-    $.writeln(selLayerProps.transform.scale.value);
+    $.writeln(selLayer.name);
 
     //project panel folder management
     var getFxFolder = findOrCreateFolder(config.fxFolder);
@@ -293,18 +304,19 @@
     if (getTextureFolder && getTextureFolder.parentFolder !== getFxFolder){
         getTextureFolder.parentFolder = getFxFolder;
     };
-    $.writeln(getFxFolder.name);
 
     var makeFolderName = selLayer.name + config.fxFolderSuffix;
     var aepRootFolder = categorizedItems.compositions[0].parentFolder
-    $.writeln(aepRootFolder.name);
+    //$.writeln(aepRootFolder.name);
     aepRootFolder.name = makeFolderName;
     aepRootFolder.parentFolder = getFxFolder;
     //end of folder mngmt
 
+    outComp.name = config.layerSuffix;
     //organize imported stuff
     categorizedItems.compositions.forEach(function(item){
-        item.name = selLayer.name +item.name;
+        applyItemProps(item, selLayerProps);
+        item.name = selLayerProps.name +item.name;
     });
     categorizedItems.footage.forEach(function(item){
         item.parentFolder = getTextureFolder;
@@ -314,6 +326,9 @@
     });
     categorizedItems.folders.forEach(function(item){
         if (item.numItems === 0){item.remove()}    
+    });
+    importedLayers.forEach(function(layer){
+        applyLayerProps(layer, selLayerProps);
     });
     //
 
@@ -325,8 +340,8 @@
     clearProjectPanelSelection(outComp);
     clearTimelineSelection(selLayer);
     //
-
-
+    app.endUndoGroup();
     $.writeln("joever");
+    return 0;
 })();
 
