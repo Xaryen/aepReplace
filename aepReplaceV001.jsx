@@ -17,10 +17,10 @@
     var config = {
         inName: "IN_1".toLowerCase(), // Ensure case-insensitive match
         outName: "OUT".toLowerCase(), // Ensure case-insensitive match
-        layerSuffix: "_stack",
+        layerSuffix: "",
         fxFolder: "04_celfx",
         fxFolderSuffix: "_FX",
-        pathDepth: 4,
+        pathDepth: 4, //how many directory levels to go up from current project file before applying preset path
         presetPath: "/_SOZAI/02_charaFX",
         presetPathFallback: "", //for now it's mydocuments
         solidsFolder: "99_solids",      //all solids will go here
@@ -87,10 +87,9 @@
 
             function doCategorize(importedProject) {
 
-                // Iterate through project items to categorize them
                 for (var i = 1; i <= importedProject.numItems; i++) {
                     var item = importedProject.item(i);
-                    switch (true) { // Use `true` as the switch expression
+                    switch (true) { 
                         case (item instanceof FolderItem):
                             importedItems.folders.push(item);
                             doCategorize(item); 
@@ -174,7 +173,7 @@
             }
         }
         return app.project.items.addFolder(folderName);
-    };
+    }
 
     function checkLayers(layerArray){
         for (i = 0; i < layerArray.length; i++) {
@@ -182,6 +181,7 @@
                 $.writeln("Layer name: " + layer.name);
         }
     }
+
     function clearProjectPanelSelection(itemToSelect){
         for (i = 1; i < app.project.numItems; i++){
             var item = app.project.item(i);
@@ -192,6 +192,7 @@
         if (!itemToSelect){return null;}
         else{itemToSelect.selected = true;return itemToSelect;}
     }
+
     function clearTimelineSelection(itemToSelect){
         for (i = 1; i < app.project.activeItem.layers; i++){
             var item = app.project.activeItem.layer(i);
@@ -203,7 +204,49 @@
         else{itemToSelect.selected = true;return itemToSelect;}
     }
 
-//------------------exec----------------------------------------------------//
+    function applyLayerProps(layer, refObj) { 
+        switch (true) { 
+            case (layer.source instanceof CompItem):
+                layer.source.width = refObj.width;
+                layer.source.height = refObj.height;
+                layer.source.duration = refObj.duration;
+                break; 
+
+            case (layer.source instanceof FootageItem):
+                //special cases for footage
+                break;
+                
+            case (layer.source instanceof SolidSource && layer.nullLayer == false):
+                layer.source.width = refObj.width;
+                layer.source.height = refObj.height;
+                break;
+
+            case (layer instanceof ShapeLayer): 
+                 //all shape layers should already be self-adjusting through expressions so only change in/out
+                break;
+
+            default:
+                break;
+        }
+        // layer.inPoint = refObj.inPoint;
+        // layer.outPoint = refObj.outPoint;
+        
+    }
+
+    function saveLayerProps(layer) {
+        return {
+            transform: layer.transform,
+            height: layer.source.height, 
+            width: layer.source.width,
+            duration: layer.source.duration,
+            inPoint: layer.inPoint,
+            outPoint: layer.outPoint,
+        };
+    }
+
+
+
+//-----------main-exec----------------------------------------------------//
     
     var selLayer = app.project.activeItem.selectedLayers[0];
     if (!selLayer){
@@ -218,28 +261,30 @@
         $.writeln("No AEP file selected.");
         return;
     } 
-    //check for existence of out/in
 
-    var categorizedItems = importAEP(selectedAEPPath);
+    var selLayerProps = saveLayerProps(selLayer);
+    //TODO: check for existence of out/in
+    var categorizedItems = importAEP(selectedAEPPath); //import here
+    var outComp = findCompByName(config.outName, categorizedItems);
     var getAllLayers = catalogLayers(categorizedItems);
-
     getAllLayers.sort();
     var inLayer = findLayerByName(config.inName, getAllLayers);
-    $.writeln(inLayer.name);
-    var outComp = findCompByName(config.outName, categorizedItems);
-    $.writeln(outComp.name);
-
+    
     var oldOutName = outComp.name;
     var newOutName = selLayer.name + config.layerSuffix;
     outComp.name = config.layerSuffix;
 
-    $.writeln(inLayer.name);
-    $.writeln(outComp.name);
-
-    inSource = inLayer.source;
-
+    var inSource = inLayer.source; //hold onto inlayer for deleting it later
     inLayer.replaceSource(selLayer.source, false);
+
+    $.writeln(selLayerProps.transform.position.value);
+    $.writeln(selLayerProps.height);
+
     selLayer.replaceSource(outComp, false);
+
+    $.writeln(selLayerProps.transform.position.value);
+    $.writeln(selLayerProps.height);
+    $.writeln(selLayerProps.transform.scale.value);
 
     //project panel folder management
     var getFxFolder = findOrCreateFolder(config.fxFolder);
@@ -255,7 +300,9 @@
     $.writeln(aepRootFolder.name);
     aepRootFolder.name = makeFolderName;
     aepRootFolder.parentFolder = getFxFolder;
+    //end of folder mngmt
 
+    //organize imported stuff
     categorizedItems.compositions.forEach(function(item){
         item.name = selLayer.name +item.name;
     });
@@ -268,8 +315,8 @@
     categorizedItems.folders.forEach(function(item){
         if (item.numItems === 0){item.remove()}    
     });
-    ///end of folder mngmt
-    
+    //
+
     //cleanup
     selLayer.name = ""; //set to empty string so that the name will match projectItem
     inLayer.name = ""; //set to empty string so that the name will match projectItem
@@ -282,3 +329,4 @@
 
     $.writeln("joever");
 })();
+
