@@ -295,7 +295,7 @@
     inLayer.replaceSource(selLayer.source, false);
 
 
-    selLayer.replaceSource(outComp, false);
+    selLayer.replaceSource(outComp, true);
 
     //project panel folder management (TODO: wrap this into a function later ig)
     var getFxFolder = findOrCreateFolder(config.fxFolder);
