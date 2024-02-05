@@ -1,6 +1,7 @@
 /*Originally based on mitsutsumi's AEP Routine Work https://www.3223.pics/2018/02/aeaep-routine-work-v10.html
 * Version "3.0"
-*
+* 
+* 
 */
 (function() {
 
@@ -18,7 +19,7 @@
         layerSuffix: "", //what will be attached to the top level layer, empty string means it will stay as default e.g. "A"
         fxFolder: "04_celfx", //subfolder in project root folder where imported materials will be placed
         fxFolderSuffix: "_FX",
-        pathDepth: 9, //how many directory levels to go up from current project file before applying preset path and opening default location
+        pathDepth: 4, //how many directory levels to go up from current project file before applying preset path and opening default location
         presetPath: "/_SOZAI/02_charaFX",
         presetPathFallback: "D:/", 
         solidsFolder: "99_solids",      //all solids will go here
