@@ -1,7 +1,7 @@
 /*Originally based on mitsutsumi's AEP Routine Work https://www.3223.pics/2018/02/aeaep-routine-work-v10.html
 * Version "3.0"
 * 
-* TODO: fix keyframe stuff
+* 
 */
 (function() {
 
@@ -51,7 +51,7 @@
         //$.writeln(defaultPath);
         // Set initial directory for the open dialog
         var initialDir = new Folder(defaultPath);
-        $.writeln(initialDir);
+        //$.writeln(initialDir);
         var aepFile = initialDir.openDlg("Select an After Effects Project", "After Effects Project:*.aep", initialDir, false);
 
         if (aepFile !== null) {
@@ -112,10 +112,10 @@
 
             // Log or use the categorized items as needed
             // For now, we'll just log to the JavaScript Console
-            $.writeln("Folders: " + importedItems.folders.length);
-            $.writeln("Compositions: " + importedItems.compositions.length);
-            $.writeln("Footage: " + importedItems.footage.length);
-            $.writeln("Solids: " + importedItems.solids.length);
+            // $.writeln("Folders: " + importedItems.folders.length);
+            // $.writeln("Compositions: " + importedItems.compositions.length);
+            // $.writeln("Footage: " + importedItems.footage.length);
+            // $.writeln("Solids: " + importedItems.solids.length);
 
             return importedItems;
 
@@ -277,7 +277,6 @@
         return;
     } 
     
-    //TODO: maybe save project at this point in case something shits the back
     var selLayerProps = saveLayerProps(selLayer);
     var categorizedItems = importAEP(selectedAEPPath); //import here
     app.beginUndoGroup("aepReplace script");
@@ -289,7 +288,7 @@
         alert("Issue with template aep.");
         return;
     }
-    $.writeln(selLayer.name);
+    // $.writeln(selLayer.name);
     var oldOutName = outComp.name; //"out"
     var newOutName = selLayer.name + config.layerSuffix; //"A" + "_FX"
 
@@ -299,7 +298,6 @@
 
     selLayer.replaceSource(outComp, true);
 
-    //project panel folder management (TODO: wrap this into a function later ig)
     var getFxFolder = findOrCreateFolder(config.fxFolder);
     var getSolidsFolder = findOrCreateFolder(config.solidsFolder);
     if (categorizedItems.footage.length > 0){
@@ -347,7 +345,7 @@
     //
     
     app.endUndoGroup();
-    $.writeln("joever");
+    //$.writeln("joever");
     return 0;
 })();
 
