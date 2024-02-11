@@ -1,7 +1,7 @@
 /*Originally based on mitsutsumi's AEP Routine Work https://www.3223.pics/2018/02/aeaep-routine-work-v10.html
 * Version "3.0"
 * 
-* 
+* TODO: fix keyframe stuff
 */
 (function() {
 
@@ -16,12 +16,12 @@
     var config = {
         inName: "IN_1".toLowerCase(), // default as in_1 for compatibility but won't be adding option to add multiple in layers
         outName: "OUT".toLowerCase(), 
-        layerSuffix: "", //what will be attached to the top level layer, empty string means it will stay as default e.g. "A"
+        layerSuffix: "_FX", //what will be attached to the top level layer, empty string means it will stay as default e.g. "A"
         fxFolder: "04_celfx", //subfolder in project root folder where imported materials will be placed
         fxFolderSuffix: "_FX",
-        pathDepth: 4, //how many directory levels to go up from current project file before applying preset path and opening default location
-        presetPath: "/_SOZAI/02_charaFX",
-        presetPathFallback: "D:/", 
+        pathDepth: 4, //how many directory levels to go up from current project file before applying preset path and opening default location(including the file name)
+        presetPath: "/_SOZAI/02_charaFX", //path to the presets, if nothing is found or pathDepth is wrong AE will usually default to the last location it used
+        presetPathFallback: "D:/", //this will be used if no project is curently open
         solidsFolder: "99_solids",      //all solids will go here
         texturesFolder: "FX_textures"   //all footage items will go here, subfolder of fxFolder
     };
@@ -224,7 +224,9 @@
         //layer.inPoint = refObj.inPoint;
         if (layer.outPoint < refObj.duration){layer.outPoint = refObj.duration};
         //reset position to middle
+        if (!(layer.transform.position.numKeys > 0)){
         layer.transform.position.setValue([refObj.width/2,refObj.height/2,0]);
+        }
     }
 
     function applyItemProps(item, refObj) { 
@@ -294,7 +296,6 @@
     var inSource = inLayer.source; //hold onto inlayer for deleting it later
 
     inLayer.replaceSource(selLayer.source, false);
-
 
     selLayer.replaceSource(outComp, true);
 
