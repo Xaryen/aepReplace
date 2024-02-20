@@ -1,7 +1,7 @@
 /*Originally based on mitsutsumi's AEP Routine Work https://www.3223.pics/2018/02/aeaep-routine-work-v10.html
 * Version "3.0"
 * 
-* 
+* fix solid in_1, fix switch bug
 */
 (function() {
 
@@ -110,12 +110,11 @@
 
             doCategorize(importedProject);
 
-            // Log or use the categorized items as needed
-            // For now, we'll just log to the JavaScript Console
-            // $.writeln("Folders: " + importedItems.folders.length);
-            // $.writeln("Compositions: " + importedItems.compositions.length);
-            // $.writeln("Footage: " + importedItems.footage.length);
-            // $.writeln("Solids: " + importedItems.solids.length);
+            // Log imported items
+            $.writeln("Folders: " + importedItems.folders.length);
+            $.writeln("Compositions: " + importedItems.compositions.length);
+            $.writeln("Footage: " + importedItems.footage.length);
+            $.writeln("Solids: " + importedItems.solids.length);
 
             return importedItems;
 
@@ -200,22 +199,27 @@
     }
     
     function applyLayerProps(layer, refObj) { 
+
         switch (true) { 
+            case (!layer):
+                break;
+
+            case (layer instanceof ShapeLayer || layer instanceof TextLayer || layer instanceof LightLayer || layer instanceof CameraLayer): 
+                //these don't have source
+                break;
+
             case (layer.source instanceof CompItem):
                 //special cases for comps
                 break; 
-
+                
             case (layer.source instanceof FootageItem && layer.source.mainSource instanceof !SolidSource):
                 //special cases for footage
                 break;
                 
             case (layer.source.mainSource instanceof SolidSource && layer.nullLayer == false):
+                //special cases for footage
                 layer.source.width = refObj.width;
                 layer.source.height = refObj.height;
-                break;
-
-            case (layer instanceof ShapeLayer): 
-                //all shape layers should already be self-adjusting through expressions so only change in/out
                 break;
 
             default:
@@ -288,7 +292,7 @@
         alert("Issue with template aep.");
         return;
     }
-    // $.writeln(selLayer.name);
+
     var oldOutName = outComp.name; //"out"
     var newOutName = selLayer.name + config.layerSuffix; //"A" + "_FX"
 
@@ -298,15 +302,16 @@
 
     selLayer.replaceSource(outComp, true);
 
+    //manage imported project items/folders
     var getFxFolder = findOrCreateFolder(config.fxFolder);
     var getSolidsFolder = findOrCreateFolder(config.solidsFolder);
     if (categorizedItems.footage.length > 0){
         var getTextureFolder = findOrCreateFolder(config.texturesFolder);
+        categorizedItems.folders.push(getTextureFolder); //adds a null to array? add check
         if (getTextureFolder && getTextureFolder.parentFolder !== getFxFolder){
             getTextureFolder.parentFolder = getFxFolder;
         };
     }
-    categorizedItems.folders.push(getTextureFolder);
     var makeFolderName = selLayerProps.name + config.fxFolderSuffix;
     var aepRootFolder = categorizedItems.compositions[0].parentFolder
     //$.writeln(aepRootFolder.name);
@@ -326,7 +331,9 @@
     categorizedItems.solids.forEach(function(item){
         item.parentFolder = getSolidsFolder;
     });
+
     inSource.remove(); // needs to be after footage/solids but before folders
+
     categorizedItems.folders.forEach(function(item){
         if (item.numItems === 0){item.remove()}    
     });
@@ -338,11 +345,9 @@
     importedLayers.forEach(function(layer){
         applyLayerProps(layer, selLayerProps);
     });
-    //
     
     clearProjectPanelSelection(outComp);
     clearTimelineSelection(selLayer);
-    //
     
     app.endUndoGroup();
     //$.writeln("joever");
