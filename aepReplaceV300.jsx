@@ -1,7 +1,7 @@
 /*Originally based on mitsutsumi's AEP Routine Work https://www.3223.pics/2018/02/aeaep-routine-work-v10.html
 * Version "3.0"
 * 
-* fix solid in_1, fix switch bug
+* 
 */
 (function() {
 
@@ -111,10 +111,10 @@
             doCategorize(importedProject);
 
             // Log imported items
-            $.writeln("Folders: " + importedItems.folders.length);
-            $.writeln("Compositions: " + importedItems.compositions.length);
-            $.writeln("Footage: " + importedItems.footage.length);
-            $.writeln("Solids: " + importedItems.solids.length);
+            // $.writeln("Folders: " + importedItems.folders.length);
+            // $.writeln("Compositions: " + importedItems.compositions.length);
+            // $.writeln("Footage: " + importedItems.footage.length);
+            // $.writeln("Solids: " + importedItems.solids.length);
 
             return importedItems;
 
